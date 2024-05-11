@@ -40,10 +40,16 @@ async function run() {
       .db("studySphereDB")
       .collection("assignments");
 
-    // save a
+    // save a new created assignment on mongodb
     app.post("/assignments", async (req, res) => {
       const assignmentData = req.body;
       const result = await assignmentCollection.insertOne(assignmentData);
+      res.send(result);
+    });
+
+    // get all assignments from mongodb server
+    app.get("/assignments", async (req, res) => {
+      const result = await assignmentCollection.find().toArray();
       res.send(result);
     });
 

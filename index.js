@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 const port = process.env.PORT || 8000;
 
@@ -50,6 +50,25 @@ async function run() {
     // get all assignments from mongodb server
     app.get("/assignments", async (req, res) => {
       const result = await assignmentCollection.find().toArray();
+      res.send(result);
+    });
+
+    // update a assignment
+    app.put("/assignment/:id", async (req, res) => {
+      const id = req.params.id;
+      const assignmentData = req.body;
+      const query = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: {
+          ...assignmentData,
+        },
+      };
+      const result = await assignmentCollection.updateOne(
+        query,
+        updatedDoc,
+        options
+      );
       res.send(result);
     });
 

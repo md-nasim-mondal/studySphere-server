@@ -39,11 +39,22 @@ async function run() {
     const assignmentCollection = client
       .db("studySphereDB")
       .collection("assignments");
+    const submittedAssignmentCollection = client
+      .db("studySphereDB")
+      .collection("submittedAssignments");
 
     // save a new created assignment on mongodb
     app.post("/assignments", async (req, res) => {
       const assignmentData = req.body;
       const result = await assignmentCollection.insertOne(assignmentData);
+      res.send(result);
+    });
+    // save a new submitted assignment on mongodb
+    app.post("/submitted-assignments", async (req, res) => {
+      const assignmentData = req.body;
+      const result = await submittedAssignmentCollection.insertOne(
+        assignmentData
+      );
       res.send(result);
     });
 
@@ -58,6 +69,13 @@ async function run() {
     // get all assignments from mongodb server
     app.get("/assignments", async (req, res) => {
       const result = await assignmentCollection.find().toArray();
+      res.send(result);
+    });
+    // get submitted assignments for a specific user by email from mongodb server
+    app.get("/submitted-assignments/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { "submittedUser.email": email };
+      const result = await submittedAssignmentCollection.find(query).toArray();
       res.send(result);
     });
 

@@ -74,8 +74,34 @@ async function run() {
     // get submitted assignments for a specific user by email from mongodb server
     app.get("/submitted-assignments/:email", async (req, res) => {
       const email = req.params.email;
-      const query = { "submittedUser.email": email };
+      const query = { "examineeUser.email": email };
       const result = await submittedAssignmentCollection.find(query).toArray();
+      res.send(result);
+    });
+    // get submitted assignments which status is  pending for mark from mongodb server
+    app.get("/pending-assignments/:status", async (req, res) => {
+      const status = req.params.status;
+      const query = { status: status };
+      const result = await submittedAssignmentCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    // update a submitted assignment after Giving mark
+    app.put("/submitted-assignment/:id", async (req, res) => {
+      const id = req.params.id;
+      const updateAssignmentData = req.body;
+      const query = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          ...updateAssignmentData,
+        },
+      };
+      const result = await submittedAssignmentCollection.updateOne(
+        query,
+        updateDoc,
+        options
+      );
       res.send(result);
     });
 

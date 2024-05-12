@@ -88,6 +88,39 @@ async function run() {
       res.send(result);
     });
 
+    // Get all assignment data from db for pagination
+    app.get("/all-assignments", async (req, res) => {
+      const size = parseInt(req.query.size);
+      const page = parseInt(req.query.page) - 1;
+      const filter = req.query.filter;
+      const sort = req.query.sort;
+      const search = req.query.search;
+      let query = {
+        assignment_title: { $regex: search, $options: "i" },
+      };
+      if (filter) query.difficultyLevel = filter;
+      let options = {};
+      if (options) options = { sort: { deadline: sort === "asc" ? 1 : -1 } };
+      const result = await assignmentCollection
+        .find(query, options)
+        .skip(page * size)
+        .limit(size)
+        .toArray();
+      res.send(result);
+    });
+
+    // Get all assignment data count from db
+    app.get("/assignments-count", async (req, res) => {
+      const filter = req.query.filter;
+      const search = req.query.search;
+      let query = {
+        assignment_title: { $regex: search, $options: "i" },
+      };
+      if (filter) query.difficultyLevel = filter;
+      const count = await assignmentCollection.countDocuments(query);
+      res.send({ count });
+    });
+
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
     console.log(

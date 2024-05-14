@@ -1,5 +1,7 @@
 const express = require("express");
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 const port = process.env.PORT || 8000;
@@ -19,6 +21,22 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use(cookieParser());
+
+const verifyToken = (req, res, next) => {
+  const token = req.cookies?.token;
+  if (!token) return res.status(401).send({ message: "unauthorized access" });
+  if (token) {
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+      if (err) {
+        console.log(err);
+        return res.status(401).send({ message: "unauthorized access" });
+      }
+      req.user = decoded;
+      next();
+    });
+  }
+};
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.irefuhm.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -43,14 +61,43 @@ async function run() {
       .db("studySphereDB")
       .collection("submittedAssignments");
 
+    //jwt generate
+    app.post("/jwt", async (req, res) => {
+      const email = req.body;
+      const token = jwt.sign(email, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1d",
+      });
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+        })
+        .send({ success: true });
+    });
+
+    // Clear token on logOut
+
+    app.get("/logOut", (req, res) => {
+      res
+        .clearCookie("token", {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+          maxAge: 0,
+        })
+        .send({ success: true });
+    });
+
     // save a new created assignment on mongodb
     app.post("/assignments", async (req, res) => {
+      
       const assignmentData = req.body;
       const result = await assignmentCollection.insertOne(assignmentData);
       res.send(result);
     });
     // save a new submitted assignment on mongodb
-    app.post("/submitted-assignments", async (req, res) => {
+    app.post("/submitted-assignments", verifyToken, async (req, res) => {
       const assignmentData = req.body;
       const result = await submittedAssignmentCollection.insertOne(
         assignmentData
@@ -59,7 +106,7 @@ async function run() {
     });
 
     // get a assignment by using Id
-    app.get("/assignment/:id", async (req, res) => {
+    app.get("/assignment/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await assignmentCollection.findOne(query);
@@ -72,14 +119,14 @@ async function run() {
       res.send(result);
     });
     // get submitted assignments for a specific user by email from mongodb server
-    app.get("/submitted-assignments/:email", async (req, res) => {
+    app.get("/submitted-assignments/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
       const query = { "examineeUser.email": email };
       const result = await submittedAssignmentCollection.find(query).toArray();
       res.send(result);
     });
     // get submitted assignments which status is  pending for mark from mongodb server
-    app.get("/pending-assignments/:status", async (req, res) => {
+    app.get("/pending-assignments/:status", verifyToken, async (req, res) => {
       const status = req.params.status;
       const query = { status: status };
       const result = await submittedAssignmentCollection.find(query).toArray();
@@ -87,7 +134,7 @@ async function run() {
     });
 
     // update a submitted assignment after Giving mark
-    app.put("/submitted-assignment/:id", async (req, res) => {
+    app.put("/submitted-assignment/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const updateAssignmentData = req.body;
       const query = { _id: new ObjectId(id) };
@@ -106,7 +153,7 @@ async function run() {
     });
 
     // update a assignment
-    app.put("/assignment/:id", async (req, res) => {
+    app.put("/assignment/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const assignmentData = req.body;
       const query = { _id: new ObjectId(id) };
@@ -125,7 +172,7 @@ async function run() {
     });
 
     // Delete a assignment from mongodb server
-    app.delete("/assignment/:id", async (req, res) => {
+    app.delete("/assignment/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await assignmentCollection.deleteOne(query);

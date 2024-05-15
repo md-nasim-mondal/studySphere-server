@@ -145,8 +145,12 @@ async function run() {
       const result = await submittedAssignmentCollection.find(query).toArray();
       res.send(result);
     });
-    app.get("/my-checked-assignments/:email",  async (req, res) => {
+    app.get("/my-checked-assignments/:email", verifyToken,  async (req, res) => {
+      const tokenEmail = req.user.email;
       const email = req.params.email;
+      if (tokenEmail !== email) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       const query = { "Examiner.email": email, status: 'Completed' };
       const result = await submittedAssignmentCollection.find(query).toArray();
       res.send(result);

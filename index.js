@@ -98,9 +98,15 @@ async function run() {
     // save a new submitted assignment on mongodb
     app.post("/submitted-assignments", async (req, res) => {
       const assignmentData = req.body;
+      const assignmentId = assignmentData?.assignmentId;
       const result = await submittedAssignmentCollection.insertOne(
         assignmentData
       );
+      const updateDoc = {
+        $inc: { assignmentTakeCount: 1 },
+      }
+      const jobQuery = { _id: new ObjectId(assignmentId) }
+      const updateBidCount = await assignmentCollection.updateOne(jobQuery, updateDoc)
       res.send(result);
     });
 
@@ -117,6 +123,17 @@ async function run() {
       const result = await assignmentCollection.find().toArray();
       res.send(result);
     });
+    // get all assignments for a specific user from mongodb server
+    app.get("/assignments/:email", verifyToken, async (req, res) => {
+      const tokenEmail = req.user.email;
+      const email = req.params.email;
+      if (tokenEmail !== email) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      const query = { "assignmentCreator.email": email };
+      const result = await assignmentCollection.find(query).toArray();
+      res.send(result);
+    });
     // get submitted assignments for a specific user by email from mongodb server
     app.get("/submitted-assignments/:email", verifyToken, async (req, res) => {
       const tokenEmail = req.user.email;
@@ -125,6 +142,12 @@ async function run() {
         return res.status(403).send({ message: "forbidden access" });
       }
       const query = { "examineeUser.email": email };
+      const result = await submittedAssignmentCollection.find(query).toArray();
+      res.send(result);
+    });
+    app.get("/my-checked-assignments/:email",  async (req, res) => {
+      const email = req.params.email;
+      const query = { "Examiner.email": email, status: 'Completed' };
       const result = await submittedAssignmentCollection.find(query).toArray();
       res.send(result);
     });
